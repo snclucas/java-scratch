@@ -3,6 +3,7 @@ package cache;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 public class DriverCache {
 
@@ -22,7 +23,6 @@ public class DriverCache {
     final MemoizedComputation<Integer, Integer> memoizer =  new MemoizedComputation<>(c);
     final UncachedComputation<Integer, Integer> uncached =  new UncachedComputation<>(c);
 
-
     ExecutorService executor = Executors.newFixedThreadPool(5);
     long t1;
     long t2;
@@ -33,11 +33,14 @@ public class DriverCache {
       executor.execute(worker);
     }
     executor.shutdown();
-    while (!executor.isTerminated()) {
-      //System.out.println("Waiting");
+    try {
+      executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
     }
+
     t2 = System.nanoTime();
-    System.out.println("Finished all threads");
+    System.out.println("Finished uncached");
     System.out.println((t2 - t1));
 
 
@@ -49,14 +52,16 @@ public class DriverCache {
       executor2.execute(worker);
     }
     executor2.shutdown();
-    while (!executor2.isTerminated()) {
-      //System.out.println("Waiting");
+
+    try {
+      executor2.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
     }
+
     t2 = System.nanoTime();
-    System.out.println("Finished all threads");
+    System.out.println("Finished memoized");
     System.out.println((t2 - t1));
-
-
   }
 
 
