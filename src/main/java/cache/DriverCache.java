@@ -1,8 +1,12 @@
 package cache;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
+
 public class DriverCache {
 
-   private DriverCache() {
+  private DriverCache() {
 
     Computable<Integer, Integer> c = arg -> {
       Integer sumFactors = 0;
@@ -15,28 +19,42 @@ public class DriverCache {
       return sumFactors;
     };
 
-    final Memoizer<Integer, Integer> memoizer =  new Memoizer<>(c);
-
-    try {
-      long t1 = 0;
-      long t2 = 0;
-
-      t1 = System.nanoTime();
-      for(int i = 0;i<100000;i++)
-        memoizer.compute(i);
-      t2 = System.nanoTime();
-      System.out.println((t2 - t1));
-
-      t1 = System.nanoTime();
-      for(int i = 0;i<100000;i++)
-        memoizer.compute(i);
-      t2 = System.nanoTime();
-      System.out.println((t2 - t1));
+    final MemoizedComputation<Integer, Integer> memoizer =  new MemoizedComputation<>(c);
+    final UncachedComputation<Integer, Integer> uncached =  new UncachedComputation<>(c);
 
 
-    } catch (InterruptedException e) {
-      e.printStackTrace();
+    ExecutorService executor = Executors.newFixedThreadPool(5);
+    long t1;
+    long t2;
+    t1 = System.nanoTime();
+    for (int i = 0; i < 10000000; i++) {
+      int randomNum = ThreadLocalRandom.current().nextInt(1, 1000 + 1);
+      Runnable worker = new WorkerThread<>(randomNum, uncached);
+      executor.execute(worker);
     }
+    executor.shutdown();
+    while (!executor.isTerminated()) {
+      //System.out.println("Waiting");
+    }
+    t2 = System.nanoTime();
+    System.out.println("Finished all threads");
+    System.out.println((t2 - t1));
+
+
+    ExecutorService executor2 = Executors.newFixedThreadPool(5);
+    t1 = System.nanoTime();
+    for (int i = 0; i < 10000000; i++) {
+      int randomNum = ThreadLocalRandom.current().nextInt(1, 1000 + 1);
+      Runnable worker = new WorkerThread<>(randomNum, memoizer);
+      executor2.execute(worker);
+    }
+    executor2.shutdown();
+    while (!executor2.isTerminated()) {
+      //System.out.println("Waiting");
+    }
+    t2 = System.nanoTime();
+    System.out.println("Finished all threads");
+    System.out.println((t2 - t1));
 
 
   }
@@ -59,29 +77,21 @@ public class DriverCache {
 
 class WorkerThread<A, V> implements Runnable {
 
-  A input;
-  Memoizer<A, V> cache;
+  private A input;
+  private Computable<A, V> cache;
 
-  public WorkerThread(A s, Memoizer<A, V> cache){
+  WorkerThread(A s, Computable<A, V> cache){
     this.input=s;
     this.cache = cache;
   }
 
   @Override
   public void run() {
-    cache.compute(input);
-  }
-
-  private void processCommand() {
     try {
-      Thread.sleep(5000);
+      cache.compute(input);
     } catch (InterruptedException e) {
       e.printStackTrace();
     }
   }
 
-  @Override
-  public String toString(){
-    return this.command;
-  }
 }

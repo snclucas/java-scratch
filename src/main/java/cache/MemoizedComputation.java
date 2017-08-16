@@ -1,14 +1,13 @@
 package cache;
 
-import java.math.BigInteger;
 import java.util.concurrent.*;
 
-public class Memoizer<A, V> implements Computable<A, V> {
+public class MemoizedComputation<A, V> implements Computable<A, V> {
   private final ConcurrentMap<A, Future<V>> cache = new ConcurrentHashMap<>();
 
   private final Computable<A, V> c;
 
-  public Memoizer(Computable<A, V> c) {
+  MemoizedComputation(Computable<A, V> c) {
     this.c = c;
   }
 
@@ -18,7 +17,7 @@ public class Memoizer<A, V> implements Computable<A, V> {
       if (f == null) {
         Callable<V> eval = () -> c.compute(arg);
 
-        FutureTask<V> ft = new FutureTask<V>(eval);
+        FutureTask<V> ft = new FutureTask<>(eval);
         f = cache.putIfAbsent(arg, ft);
         if (f == null) { f = ft; ft.run(); }
       }
